@@ -145,6 +145,14 @@
         .github a {
             color: #f6821fc5;
         }
+
+        .per-month {
+            font-size: 0.8rem;
+        }
+        
+        .per-month-small {
+            font-size: 0.7rem;
+        }
     </style>
 </head>
 <body>
@@ -167,9 +175,9 @@
             </div>
         </div>
         <div class="result">
-            <p>Price for requests: $<span id="requestsPrice">0</span></p>
-            <p>Price for CPU time: $<span id="cpuTimePrice">0</span></p>
-            <h3>Total price: $<span id="totalPrice">0</span></h3>
+            <p>Price for requests: $<span id="requestsPrice">0</span> <span class="per-month-small">/month</span></p>
+            <p>Price for CPU time: $<span id="cpuTimePrice">0</span> <span class="per-month-small">/month</span></p>
+            <h3>Total price: $<span id="totalPrice">0</span> <span class="per-month">/month</span></h3>
             <p id="monthlySubscriptionPrice">(monthly subscription fee: $5.00)</p>
             <p id="extraInfoOnFreeTier">* Free users get 100,000 requests per day capped at 10ms CPU time per request.</p>
         </div>
