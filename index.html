@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare Worker Pricing Calculator</title>
+    <meta property="og:title" content="Cloudflare Worker Pricing Calculator">
+    <meta property="og:description" content="Calculate the cost of Cloudflare Workers based on your expected usage with this simple pricing calculator">
+    <meta property="og:url" content="https://cloudflare-worker-pricing-caluclator.uwu.gal">
+    <meta property="og:type" content="website">
+    <meta name="theme-color" content="#f6821f">
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --calculator-bg: #2f2f2f;
+            --text-color: #ffffff;
+            --input-bg: #2d2d2d;
+            --accent-color: #f6821f;
+            --border-radius: 8px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.6;
+        }
+
+        .main-title {
+            color: var(--accent-color);
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            padding-top: 2rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .calculator {
+            background-color: var(--calculator-bg);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #444;
+            border-radius: var(--border-radius);
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .result {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #444;
+        }
+
+        .result p {
+            margin: 0.5rem 0;
+        }
+
+        .result h3 {
+            color: var(--accent-color);
+            margin: 1rem 0;
+        }
+
+        #totalPrice {
+            font-weight: bold;
+        }
+
+        #monthlySubscriptionPrice{
+            margin-top: -0.5rem;
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        #extraInfoOnFreeTier {
+            padding-top: 1rem;
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-suffix {
+            position: absolute;
+            right: 12px;
+            color: #999;
+            pointer-events: none;
+        }
+
+        .social-icon-container {
+            width: 100%;
+            max-width: calc(500px + 4rem);
+            margin-top: -10px;
+        }
+
+        .social-icon {
+            padding: 0rem 1rem 0.5rem 1rem;
+            background-color: var(--calculator-bg);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 88px;
+            margin: 0 calc(100% - calc(88px + 2rem));
+        }
+    </style>
+</head>
+<body>
+    <div class="title">
+        <div class="main-title">Cloudflare Worker Pricing Calculator</div>
+    </div>
+    <div class="calculator">
+        <div class="form-group">
+            <label for="requests">Requests per month:</label>
+            <div class="input-group">
+                <input type="text" id="requests" value="1,000">
+                <span class="input-suffix">requests</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="cpu_time">Average CPU time per request (in ms):</label>
+            <div class="input-group">
+                <input type="text" id="cpu_time" value="7">
+                <span class="input-suffix">ms</span>
+            </div>
+        </div>
+        <div class="result">
+            <p>Price for requests: $<span id="requestsPrice">0</span></p>
+            <p>Price for CPU time: $<span id="cpuTimePrice">0</span></p>
+            <h3>Total price: $<span id="totalPrice">0</span></h3>
+            <p id="monthlySubscriptionPrice">(monthly subscription fee: $5.00)</p>
+            <p id="extraInfoOnFreeTier">* Free users get 100,000 requests per day capped at 10ms CPU time per request.</p>
+        </div>
+
+        <script>
+            const MONTHLY_SUBSCRIPTION_FEE = 5.00;
+            const FREE_REQUESTS_PER_MONTH = 10_000_000;
+            const PRICE_PER_MILLION_ADDITIONAL_REQUESTS = 0.30;
+            const FREE_CPU_TIME_MS_PER_MONTH = 30_000_000;
+            const PRICE_PER_MILLION_ADDITIONAL_CPU_TIME_MS = 0.02;
+            const requestsInput = document.getElementById('requests');
+            const cpuTimeInput = document.getElementById('cpu_time');
+
+            function parseUserInput(input) {
+                return parseFloat(input.replace(/,/g, '').replace(/_/g, '')) || 0;
+            }
+
+            function calculateAndUpdate() {
+                const requests = parseUserInput(requestsInput.value);
+                const cpuTime = parseUserInput(cpuTimeInput.value);
+                updatePricing(requests, cpuTime);
+            }
+
+            function calculatePriceOfRequests(requests) {
+                if (requests <= FREE_REQUESTS_PER_MONTH) {
+                    return 0.00;
+                }
+                return ((requests - FREE_REQUESTS_PER_MONTH) / 1_000_000) * PRICE_PER_MILLION_ADDITIONAL_REQUESTS;
+            }
+
+            function calculatePriceOfCPUTime(requests, cpu_time) {
+                let monthly_cpu_time = requests * cpu_time;
+                if (monthly_cpu_time <= FREE_CPU_TIME_MS_PER_MONTH) {
+                    return 0.00;
+                }
+                return ((monthly_cpu_time - FREE_CPU_TIME_MS_PER_MONTH) / 1_000_000) * PRICE_PER_MILLION_ADDITIONAL_CPU_TIME_MS;
+            }
+
+            function updatePricing(requests, cpu_time) {
+                const priceCPUTimePerMonth = calculatePriceOfCPUTime(requests, cpu_time);
+                const priceRequestsPerMonth = calculatePriceOfRequests(requests);
+                const totalBillPerMonth = priceCPUTimePerMonth + priceRequestsPerMonth + MONTHLY_SUBSCRIPTION_FEE;
+
+                document.getElementById('totalPrice').innerText = totalBillPerMonth.toFixed(2);
+                document.getElementById('cpuTimePrice').innerText = priceCPUTimePerMonth.toFixed(2);
+                document.getElementById('requestsPrice').innerText = priceRequestsPerMonth.toFixed(2);            }
+
+            requestsInput.addEventListener('input', calculateAndUpdate);
+            cpuTimeInput.addEventListener('input', calculateAndUpdate);
+
+            calculateAndUpdate();
+        </script>
+    </div>
+    <div class="social-icon-container">
+        <div class="social-icon">
+            <a href="https://uwu.gal/about-us" target="_blank"><img src="https://uwu.gal/button.png" width="88" height="31" loading="lazy" alt="uwu.gal 88x31 button"/></a>
+        </div>
+    </div>
+</body>
+</html>
