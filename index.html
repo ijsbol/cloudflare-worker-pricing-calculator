@@ -175,6 +175,13 @@
                 return parseFloat(input.replace(/,/g, '').replace(/_/g, '')) || 0;
             }
 
+            function formatNumber(number) {
+                return number.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
             function calculateAndUpdate() {
                 const requests = parseUserInput(requestsInput.value);
                 const cpuTime = parseUserInput(cpuTimeInput.value);
@@ -201,9 +208,10 @@
                 const priceRequestsPerMonth = calculatePriceOfRequests(requests);
                 const totalBillPerMonth = priceCPUTimePerMonth + priceRequestsPerMonth + MONTHLY_SUBSCRIPTION_FEE;
 
-                document.getElementById('totalPrice').innerText = totalBillPerMonth.toFixed(2);
-                document.getElementById('cpuTimePrice').innerText = priceCPUTimePerMonth.toFixed(2);
-                document.getElementById('requestsPrice').innerText = priceRequestsPerMonth.toFixed(2);            }
+                document.getElementById('totalPrice').innerText = formatNumber(totalBillPerMonth);
+                document.getElementById('cpuTimePrice').innerText = formatNumber(priceCPUTimePerMonth);
+                document.getElementById('requestsPrice').innerText = formatNumber(priceRequestsPerMonth);
+            }
 
             requestsInput.addEventListener('input', calculateAndUpdate);
             cpuTimeInput.addEventListener('input', calculateAndUpdate);
